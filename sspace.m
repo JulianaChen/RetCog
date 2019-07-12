@@ -62,20 +62,20 @@ aime1=0;
 aime2=20000;
 
 % Chevyshev Approximation
-[assets,nA,extmin_A,extmax_A,d_A,T_A,T2_A] = cheby_values(G.n_assets,asset2,asset1);
-[cogcap,nK,extmin_K,extmax_K,d_K,T_K,T2_K] = cheby_values(G.n_cogcap,cogcap2,cogcap1);
-[aime,nM,extmin_M,extmax_M,d_M,T_M,T2_M] = cheby_values(15,aime2,aime1); %% aime has different size - should all continuous variables be the same size?
+[assets,nA,extmin_A,extmax_A,d_A,T_A,T2_A,B_A] = cheby_values(G.n_assets,asset2,asset1);
+[cogcap,nK,extmin_K,extmax_K,d_K,T_K,T2_K,B_K] = cheby_values(G.n_cogcap,cogcap2,cogcap1);
+[aime,nM,extmin_M,extmax_M,d_M,T_M,T2_M,B_M] = cheby_values(15,aime2,aime1); %% aime has different size - should all continuous variables be the same size?
 
 %% SS for chevyshev - Q. how does this work? 
 
-SS_A = assets;
-SS_K = cogcap;
-SS_M = aime;
+% SS_A = assets;
+% SS_K = cogcap;
+% SS_M = aime;
 
-% Expand Vector (to calculate function)
-% SS_A = repmat(assets',[length(cogcap)*length(aime) 1]);
-% SS_K = repmat(kron(cogcap',ones(length(aime),1)),[length(assets) 1]);
-% SS_M = kron(aime',ones([length(assets)*length(cogcap),1]));
+%% Expand Vector (to calculate function)
+SS_A = repmat(assets',[length(cogcap)*length(aime) 1]);
+SS_K = repmat(kron(cogcap',ones(length(aime),1)),[length(assets) 1]);
+SS_M = kron(aime',ones([length(assets)*length(cogcap),1]));
 
 %% output
 
@@ -86,6 +86,6 @@ S = struct(...
     'extmin_M',extmin_M,'extmax_M',extmax_M,'nA',nA,'nK',nK,'nM',nM,...
     'd_A', d_A, 'd_K', d_K, 'd_M', d_M, 'assets', assets, 'cogcap', cogcap, 'aime', aime,...
     'SS_A', SS_A, 'SS_K', SS_K, 'SS_M', SS_M,'T_A',T_A,'T_K',T_K,'T_M',T_M,...
-    'T2_A',T2_A,'T2_K',T2_K,'T2_M',T2_M,'SS_L',SS_L);
+    'T2_A',T2_A,'T2_K',T2_K,'T2_M',T2_M,'SS_L',SS_L,'B_A',B_A,'B_K',B_K,'B_M',B_M);
 
 % end 
