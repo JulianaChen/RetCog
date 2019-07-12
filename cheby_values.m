@@ -1,4 +1,4 @@
-function [vector,ncheby,extmin,extmax,d,T,T2] = cheby_values(n,ub,lb)
+function [vector,ncheby,extmin,extmax,d,T,T2,B] = cheby_values(n,ub,lb)
     
     % points
     M = n;
@@ -30,5 +30,7 @@ function [vector,ncheby,extmin,extmax,d,T,T2] = cheby_values(n,ub,lb)
     T = chebpoly_base(ncheby+1,z);
     % Base Squared
     T2 = diag(T'*T);
+  
+    B = kron(T, kron(T,T)); % THIS LINE ADDED- half of the numerator of the coeff; 3375x2744
     
 end
