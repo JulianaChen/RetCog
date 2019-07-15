@@ -19,41 +19,17 @@ shocks_h = kron(eps_h,ones(length(eps_h),1)); % 9x1
 
 weight = kron(wt,wt); %kron(wt, kron(wt,wt)); % 9x1
 
-% Basis for Income Shocks
-zeps_w= 2*(eps_w-eps_w(1))/(eps_w(G.Ne,1)-eps_w(1))-1; 
-zeps_h= 2*(eps_h-eps_h(1))/(eps_h(G.Ne,1)-eps_h(1))-1; 
-
-Teps_w=chebpoly_base(G.Ne-1,zeps_w);
-Teps_h=chebpoly_base(G.Ne-1,zeps_h);
-
-T2eps_w = diag(Teps_w'*Teps_w);
-T2eps_h = diag(Teps_h'*Teps_h);
-
-%% Discrete Variables
-
-work = [1 0];
-SS_L = work; 
-
-%% Continuous Variables (CHEVYSHEV GRID)
-
-% assets_lb  = 0; 
-% assets_int = 211000; % 50%
-% assets_ub  = 545000; % 75% 
-% assets1 = linspace(assets_lb,assets_int,G.n_assets-3);
-% assets2 = linspace(assets_int,assets_ub,4);
-% assets = [assets1,assets2([2:4])];
-%
-% cogcap_lb  = 0; 
-% cogcap_int = 17; % 50%
-% cogcap_ub  = 27; % 100%
-% cogcap = linspace(cogcap_lb,cogcap_ub,G.n_cogcap);
+% % Basis for Income Shocks % THIS IS FOR SIMULATION ONLY 
+% zeps_w= 2*(eps_w-eps_w(1))/(eps_w(G.Ne,1)-eps_w(1))-1; 
+% zeps_h= 2*(eps_h-eps_h(1))/(eps_h(G.Ne,1)-eps_h(1))-1; 
 % 
-% aime_lb  = 0; 
-% aime_int = 5000; % 50%, check SSA data
-% aime_ub  = 20000; % 100%, check SSA data
-% aime = linspace(aime_lb,aime_ub,G.n_aime);
+% Teps_w=chebpoly_base(G.Ne-1,zeps_w);
+% Teps_h=chebpoly_base(G.Ne-1,zeps_h);
+% 
+% T2eps_w = diag(Teps_w'*Teps_w);
+% T2eps_h = diag(Teps_h'*Teps_h);
 
-% Testing:
+%% Continuous Variables 
 asset1=0;
 asset2=545000;
 cogcap1=0;
@@ -61,21 +37,19 @@ cogcap2=27;
 aime1=0;
 aime2=20000;
 
-% Chevyshev Approximation
+%% Chevyshev Approximation
 [assets,nA,extmin_A,extmax_A,d_A,T_A,T2_A,B_A] = cheby_values(G.n_assets,asset2,asset1);
 [cogcap,nK,extmin_K,extmax_K,d_K,T_K,T2_K,B_K] = cheby_values(G.n_cogcap,cogcap2,cogcap1);
-[aime,nM,extmin_M,extmax_M,d_M,T_M,T2_M,B_M] = cheby_values(15,aime2,aime1); %% aime has different size - should all continuous variables be the same size?
-
-%% SS for chevyshev - Q. how does this work? 
-
-% SS_A = assets;
-% SS_K = cogcap;
-% SS_M = aime;
+[aime,nM,extmin_M,extmax_M,d_M,T_M,T2_M,B_M] = cheby_values(G.n_aime,aime2,aime1); %% aime has different size - should all continuous variables be the same size?
 
 %% Expand Vector (to calculate function)
-SS_A = repmat(assets',[length(cogcap)*length(aime) 1]);
-SS_K = repmat(kron(cogcap',ones(length(aime),1)),[length(assets) 1]);
-SS_M = kron(aime',ones([length(assets)*length(cogcap),1]));
+SS_A = repmat(assets',[length(cogcap)*length(aime) 1]); % 1125 x 1 
+SS_K = repmat(kron(cogcap',ones(length(aime),1)),[length(assets) 1]); % 1125 x 1 
+SS_M = kron(aime',ones([length(assets)*length(cogcap),1])); % 1125 x 1 
+
+%% Polynomial Bases %% 
+B = kron(T_A, kron(T_K,T_M)); %1125 x 784
+T2 = kron(T2_A, kron(T2_K,T2_M)); % 784 x 1
 
 %% output
 
@@ -86,6 +60,6 @@ S = struct(...
     'extmin_M',extmin_M,'extmax_M',extmax_M,'nA',nA,'nK',nK,'nM',nM,...
     'd_A', d_A, 'd_K', d_K, 'd_M', d_M, 'assets', assets, 'cogcap', cogcap, 'aime', aime,...
     'SS_A', SS_A, 'SS_K', SS_K, 'SS_M', SS_M,'T_A',T_A,'T_K',T_K,'T_M',T_M,...
-    'T2_A',T2_A,'T2_K',T2_K,'T2_M',T2_M,'SS_L',SS_L,'B_A',B_A,'B_K',B_K,'B_M',B_M);
+    'T2_A',T2_A,'T2_K',T2_K,'T2_M',T2_M,'B_A',B_A,'B_K',B_K,'B_M',B_M,'T2',T2,'B',B);
 
 % end 
