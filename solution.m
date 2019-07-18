@@ -37,36 +37,19 @@
 
 
 %% Terminal Value Function
-
-% age at TVF
-age_TVF = 82; % initial age in 2004 (51-70) -> final age in 2016 (63-82), Final age: TBD
-
-% assets
-assets = S.SS_A; 
                     
-% TVF (bequest function, French 2005, French & Jones 2011) 
-TVF = (G.theta_b*(assets + G.kappa).^(1-G.nu)*G.lambda)/(1-G.nu); % (15*15*5) x 1 = 1125 x 1
+% From bequest function in French 2005 and French & Jones 2011 
+TVF = (G.theta_b*(S.SS_A + G.kappa).^(1-G.nu)*G.lambda)/(1-G.nu); % (15*15*5) x 1 = 1125 x 1
 
 
 %% 1. Loop for time (32 periods, TBD):
 
 for t = G.n_period-1:-1:1
-    
-    % age
-    age = 50 + t;
-    
-    % age groups 
-    if age <= 58
-        agegr=1;
-    elseif 59 <= age <= 66
-        agegr=2;
-    elseif 67 <= age <= 74
-        agegr=3;
-    else 
-        agegr=4;
-    end 
-     
     t;
+    
+    % age & age groups
+    age = 50 + t;
+    agegr = agegr_func(age);
 
     % Coefficients for Chebyshev Approximation
     if t==G.n_period-1
@@ -75,7 +58,7 @@ for t = G.n_period-1:-1:1
             Den= T2; % T2= kron(T2_A, kron(T2_A,T2_A)), 784 x 1
             coeff = Num./Den'; % 1 x 784 
     else
-        Emax = W(:,:,t+1);
+        Emax = W(:,t+1);
             Num= Emax'*S.B; % B= kron(T_A, kron(T_K,T_M))
             Den= T2; % T2= kron(T2_A, kron(T2_A,T2_A))
             coeff = Num./Den'; % 1 x 784 
@@ -109,16 +92,7 @@ for t = G.n_period-1:-1:1
               AIME_j = S.SS_M(j); 
               
             % AIME to PIA 
-              PB1= 612*12; % bend point1, annualized, as of 2004
-              PB2= 1689*12; % bend point2, annualized, as of 2004 
-
-              if AIME_j < PB1 
-                 PIA_t = 0.9*AIME_j;
-              elseif PB1 <= AIME_j < PB2
-                 PIA_t = 0.9*PB1 + 0.32*(AIME_j-PB1);
-              else 
-                 PIA_t = 0.9*PB1 + 0.32*(PB2-PB1) + 0.15*(AIME_j-PB2);
-              end
+              PIA_t = PIA_func(AIME_j, age);
 
               % vector for cognitive investment 
               inv_min= 0;
@@ -142,30 +116,13 @@ for t = G.n_period-1:-1:1
 
                    % transition for cognitive capital: K_(t+1)=?*i_t^total+(1-?_t)K_j+?_t^health
                    % Q. are theta1, delta, shocks same for workers and the retired?
-
-                     theta1=1; % efficiency with which investments translate into improvements in cognition, temporary
-                     delta01=0.4; % age-related natural depreciation rate for age 51-58, temporary
-                     delta02=0.3; % age-related natural depreciation rate for age 59-66, temporary
-                     delta03=0.2; % age-related natural depreciation rate for age 67-74, temporary
-                     delta04=0.1; % age-related natural depreciation rate for age 75-82, temporary
-
-                     K_w_next = theta1*inv_w + ...
-                              + (1-delta01)*(agegr==1)*K_j...
-                              + (1-delta02)*(agegr==2)*K_j...
-                              + (1-delta03)*(agegr==3)*K_j...
-                              + (1-delta04)*(agegr==4)*K_j...
-                              + shocks_h; % estimate delta by age groups (4 deltas); 
-                          
-                     K_r_next = theta1*inv_r + ...
-                              + (1-delta01)*(agegr==1)*K_j...
-                              + (1-delta02)*(agegr==2)*K_j...
-                              + (1-delta03)*(agegr==3)*K_j...
-                              + (1-delta04)*(agegr==4)*K_j...
-                              + shocks_h; % estimate delta by age groups (4 deltas); 
+                   
+                    K_w_next = K_trans(inv_w, agegr, K_j, shocks_h);
+                    K_r_next = K_trans(inv_r, agegr, K_j, shocks_h);
 
                    % job probabilities
-                     prob_lamba = 0.3; % temporary 
-                      % prob_lamba = normcdf(tau10 + tau11*(edu==2) + tau12*(edu==3) + tau13*age + tau14*JD); % probability of losing a job 
+                     prob_lambda = 0.3; % temporary 
+                      % prob_lambda = normcdf(tau10 + tau11*(edu==2) + tau12*(edu==3) + tau13*age + tau14*JD); % probability of losing a job 
 
                    % Utility by work status: U_t(l_t,K_j)=(T-l_t-a*i_t)^lambda*(K_j)^(1-lambda)
                             
@@ -195,24 +152,11 @@ for t = G.n_period-1:-1:1
                    
                    % Transition for asset: A_(t+1)=(1+r)A_t+l_t*w_t(JD,Ed,age,?_t^wage)+(1-l_t)PIA(AIME_j,age_t)
                      
-                     iota=10; % price of health investment, temporary 
-                     
-                     A_w_next = (1+G.r)*A_j + eta*inc_w - iota*inv_w; % add fixed ratio of savings, minus health inv cost?
-                     A_r_next = (1+G.r)*A_j + eta*inc_r - iota*inv_r; % add fixed ratio of savings, minus health inv cost?
-                            
+                     A_w_next = A_trans(G, A_j, inc_w, inv_w);
+                     A_r_next = A_trans(G, A_j, inc_r, inv_r);
+                                                 
                    % Transition for AIME
-                    
-                     omega_t=0.1; % temporary; approximates the ratio of the lowest earnings year to AIME
-                                  % estimate by simulating wage (not earnings) histories with the model developed in French 2005
-                            
-                     if age <= 55 
-                     AIME_w_next= (1+G.g)*AIME_j + 1/35*wage; % omega_t=0 for workers aged 55 and younger
-                     elseif 55 < age <= 60
-                     AIME_w_next= (1+G.g)*AIME_j + 1/35*max(0, wage - omega_t*(1+G.g)*AIME_j);
-                     else 
-                     AIME_w_next= (1+G.g)*AIME_j + 1/35*max(0, wage - omega_t*AIME_j); % earnings accrued after age 60 are not rescaled 
-                     end
-                   
+                     AIME_w_next = AIME_trans(G, age, AIME_j, wage);
                      AIME_r_next = AIME_j; % if retired, AIME doesn't update anymore
                    
                    % polynomial approximation of VF (for all continuous variables)
@@ -260,7 +204,7 @@ for t = G.n_period-1:-1:1
                      K_r_next(k)=K_r_next;
                             
                      % Sector-Specific Value Function (for working & retired)
-                     V_w(k) = u_w(k) + G.beta * ((1-prob_lamba)*V_w_next(k) + prob_lamba*V_r_next(k));
+                     V_w(k) = u_w(k) + G.beta * ((1-prob_lambda)*V_w_next(k) + prob_lambda*V_r_next(k));
                      V_r(k) = u_r(k) + G.beta * (V_r_next(k));
 
                      % Save value function (for work decisions)
