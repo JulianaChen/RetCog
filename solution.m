@@ -45,7 +45,7 @@ age_TVF = 82; % initial age in 2004 (51-70) -> final age in 2016 (63-82), Final 
 assets = S.SS_A; 
                     
 % TVF (bequest function, French 2005, French & Jones 2011) 
-TVF = (G.theta_b*(assets + G.kappa).^(1-G.nu)*G.lambda)/(1-G.nu); % 1125 (15*15*5) x 1
+TVF = (G.theta_b*(assets + G.kappa).^(1-G.nu)*G.lambda)/(1-G.nu); % (15*15*5) x 1 = 1125 x 1
 
 
 %% 1. Loop for time (32 periods, TBD):
@@ -71,8 +71,8 @@ for t = G.n_period-1:-1:1
     % Coefficients for Chebyshev Approximation
     if t==G.n_period-1
         Emax = TVF;
-            Num= Emax'*S.B; % B= kron(T_A, kron(T_K,T_M))
-            Den= T2; % T2= kron(T2_A, kron(T2_A,T2_A))
+            Num= Emax'*S.B; % B= kron(T_A, kron(T_K,T_M)), 1125 x 784
+            Den= T2; % T2= kron(T2_A, kron(T2_A,T2_A)), 784 x 1
             coeff = Num./Den'; % 1 x 784 
     else
         Emax = W(:,:,t+1);
@@ -91,18 +91,19 @@ for t = G.n_period-1:-1:1
         shocks_h= S.shocks_h(i);
 
         % wage (jd-edu-age profile)
-
         wage=10000; % temporary
-         % wage = exp(alpha01 + alpha02*(jd==2) + alpha03*(jd==3) + alpha11*(edu==2) + alpha12*(edu==3) + alpha2*log(1+age) + shocks_w);
-                
+         % wage = exp(alpha01 + alpha02*(jd==2) + alpha03*(jd==3) + alpha11*(edu==2) + alpha12*(edu==3) + alpha2*log(1+age) + shocks_w);            
 
-        % 3. Loop over assets (15 points):
+        % 3. Loop over state space (15*15*5 = 1125 points):
 
-        for j = 1:1:(G.n_assets*G.n_aime*G.n_cogcap) % 15*15*5
+        for j = 1:1:(G.n_assets*G.n_cogcap*G.n_aime) % 15*15*5
                 j;
 
             % Individual's assets
               A_j = S.SS_A(j);
+              
+            % cognitive capital 
+              K_j = S.SS_K(j);  
               
             % Individual's aime 
               AIME_j = S.SS_M(j); 
@@ -118,15 +119,14 @@ for t = G.n_period-1:-1:1
               else 
                  PIA_t = 0.9*PB1 + 0.32*(PB2-PB1) + 0.15*(AIME_j-PB2);
               end
-              
-            % cognitive capital 
-              K_j = S.SS_K(j);  
 
               % vector for cognitive investment 
               inv_min= 0;
-              inv_max= 168 ; % get from data
-              inv_vector = linspace(inv_min,inv_max,G.n_coginv);
-                      
+              inv_w_max= 24-8-8; % get from data
+              inv_r_max= 24-8; % get from data
+              inv_w_vector = linspace(inv_min,inv_w_max,G.n_coginv);
+              inv_r_vector = linspace(inv_min,inv_r_max,G.n_coginv);
+              
               % 4. loop over cognitive investment 
 
               for k = 1:1:G.n_coginv
@@ -137,8 +137,8 @@ for t = G.n_period-1:-1:1
                    JD = 10; % temporary
                    % JD = zeta01 + zeta02*(jd==2) + zeta03*(jd==3) + zeta11*(edu==2) + zeta12*(edu==3); % TBD 
 
-                   inv_w = inv_vector(k) + JD;  
-                   inv_r = inv_vector(k); 
+                   inv_w = inv_w_vector(k) + JD;  
+                   inv_r = inv_r_vector(k); 
 
                    % transition for cognitive capital: K_(t+1)=?*i_t^total+(1-?_t)K_j+?_t^health
                    % Q. are theta1, delta, shocks same for workers and the retired?
@@ -164,7 +164,6 @@ for t = G.n_period-1:-1:1
                               + shocks_h; % estimate delta by age groups (4 deltas); 
 
                    % job probabilities
-
                      prob_lamba = 0.3; % temporary 
                       % prob_lamba = normcdf(tau10 + tau11*(edu==2) + tau12*(edu==3) + tau13*age + tau14*JD); % probability of losing a job 
 
@@ -178,20 +177,21 @@ for t = G.n_period-1:-1:1
                      %inv: time invested in cognitive stimulating activities
                      %"T- theta2*l_t -?i_t": individual’s time constraint and indicates the quantity of leisure consumed
 
-                     T= 4466; % temporary (French & Jones 2011) 
-                     L_j= 1313; % temporary (French & Jones 2011)
+                     T= 24-8; % 24-sleep, temporary (4,466 French & Jones 2011) 
+                     L_j= 8; % 8 hours of work, temporary (1,313 French & Jones 2011)
                      alpha=0.1; % temporary
-                     lambda=0.5; % temporary
+                     lambda1=0.3; % temporary
+                     lambda2=0.3; % temporary
                      eta=0.5; % fixed savings rate, temporary 
 
                      inc_w = wage;
                      inc_r = PIA_t;
                      
-                     u_w(k) = lambda*log(T - L_j- alpha*inv_w) + (1-lambda)*log(K_j); % + (1-eta)*inc_w; %% check 
-                     u_r(k) = lambda*log(T - alpha*inv_r) + (1-lambda)*log(K_j); % + (1-eta)*inc_r; %% check 
+                     u_w(k) = lambda1*log(T - L_j- alpha*inv_w) + lambda2*log(K_j) + (1-lambda1-lambda2)*log((1-eta)*inc_w); %% check 
+                     u_r(k) = lambda1*log(T - alpha*inv_r) + lambda2*log(K_j) + (1-lambda1-lambda2)*log((1-eta)*inc_r); %% check 
                      
-%                      u_w(k)= ((T - L_j- alpha*inv_w).^lambda) * K_j^(1-lambda) + (1-eta)*inc_w; 
-%                      u_r(k)= ((T - alpha*inv_r).^lambda) * K_j^(1-lambda) + (1-eta)*inc_r;
+%                      u_w(k)= ((T - L_j- alpha*inv_w).^lambda1) * K_j^(lambda2) + ((1-eta)*inc_w)^(1-lambda1-lambda2); 
+%                      u_r(k)= ((T - alpha*inv_r).^lambda1) * K_j^(lambda2) + ((1-eta)*inc_r)^(1-lambda1-lambda2);
                    
                    % Transition for asset: A_(t+1)=(1+r)A_t+l_t*w_t(JD,Ed,age,?_t^wage)+(1-l_t)PIA(AIME_j,age_t)
                      
@@ -268,29 +268,27 @@ for t = G.n_period-1:-1:1
                      V_r_aux(k,j,i) = V_r(k); 
                                     
               end
-        end
-                         
-                     % optimal investment and max VF
-                       % save optimal 
-                       [V_w_star, index_w_n] = max(V_w);
-                       [V_r_star, index_r_n] = max(V_r);
-                       inv_w_star = inv_vector(index_w_n);                            
-                       inv_r_star = inv_vector(index_r_n);
-                       inv_star_aux = [inv_w_star, inv_r_star]; 
-                       [V_star, l_index] = max([V_w_star,V_r_star]);
+              
+              % optimal investment and max VF
+              
+              % save optimal 
+              [V_w_star, index_w_n] = max(V_w);
+              [V_r_star, index_r_n] = max(V_r);
+              inv_w_star = inv_w_vector(index_w_n);                            
+              inv_r_star = inv_r_vector(index_r_n);
+              inv_star_aux = [inv_w_star, inv_r_star]; 
+              [V_star, l_index] = max([V_w_star,V_r_star]);
                             
-                       % save choices
-                       i_star(k,j,i,t) = inv_star_aux(l_index);
-                       l_star(k,j,i,t) = l_index;
-                       V_star(k,j,i,t) = V_star;
+              % save choices
+              i_star(j,i,t) = inv_star_aux(l_index);
+              l_star(j,i,t) = l_index;
+              V_star(j,i,t) = V_star;
+              
+        end
 
-                    end
-
-                end
-
-        
+    end
+    
     % Integrate over shocks
-    W(:,l,t) = pi^(-1/2)*V_star(:,:,l,t)*S.weight;
-  
-    % save policy functions 
-                        
+    W(:,t) = pi^(-1/2)*V_star(:,:,t)*S.weight;
+
+end
