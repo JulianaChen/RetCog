@@ -1,5 +1,6 @@
 %function [l_func,i_func,A_out,W] = solution(G,edu,jd,earner,S,eparams,P) 
 
+
 %% index for parameters
 
 % % estimated
@@ -35,6 +36,10 @@
 % tau13=cparams(14); % parameters for job losing probabilities
 % tau14=cparams(15); % parameters for job losing probabilities
 
+%% Vector for cognitive investment 
+inv_w_vector = linspace(G.inv_min,G.inv_w_max,G.n_coginv);
+inv_r_vector = linspace(G.inv_min,G.inv_r_max,G.n_coginv);
+            
 
 %% Terminal Value Function
                     
@@ -43,7 +48,7 @@ TVF = (G.theta_b*(S.SS_A + G.kappa).^(1-G.nu)*G.lambda)/(1-G.nu); % (15*15*5) x 
 
 
 %% 1. Loop for time (32 periods, TBD):
-
+tic;
 for t = G.n_period-1:-1:1
     t;
     
@@ -55,12 +60,12 @@ for t = G.n_period-1:-1:1
     if t==G.n_period-1
         Emax = TVF;
             Num= Emax'*S.B; % B= kron(T_A, kron(T_K,T_M)), 1125 x 784
-            Den= T2; % T2= kron(T2_A, kron(T2_A,T2_A)), 784 x 1
+            Den= S.T2; % T2= kron(T2_A, kron(T2_A,T2_A)), 784 x 1
             coeff = Num./Den'; % 1 x 784 
     else
         Emax = W(:,t+1);
             Num= Emax'*S.B; % B= kron(T_A, kron(T_K,T_M))
-            Den= T2; % T2= kron(T2_A, kron(T2_A,T2_A))
+            Den= S.T2; % T2= kron(T2_A, kron(T2_A,T2_A))
             coeff = Num./Den'; % 1 x 784 
     end
 
@@ -94,6 +99,10 @@ for t = G.n_period-1:-1:1
             % AIME to PIA 
               PIA_t = PIA_func(AIME_j, age);
 
+            % Labor Income 
+              inc_w = wage;
+              inc_r = PIA_t;
+              
               % vector for cognitive investment 
               inv_min= 0;
               inv_w_max= 24-8-8; % get from data
@@ -114,94 +123,60 @@ for t = G.n_period-1:-1:1
                    inv_w = inv_w_vector(k) + JD;  
                    inv_r = inv_r_vector(k); 
 
-                   % transition for cognitive capital: K_(t+1)=?*i_t^total+(1-?_t)K_j+?_t^health
-                   % Q. are theta1, delta, shocks same for workers and the retired?
-                   
-                    K_w_next = K_trans(inv_w, agegr, K_j, shocks_h);
-                    K_r_next = K_trans(inv_r, agegr, K_j, shocks_h);
-
                    % job probabilities
                      prob_lambda = 0.3; % temporary 
                       % prob_lambda = normcdf(tau10 + tau11*(edu==2) + tau12*(edu==3) + tau13*age + tau14*JD); % probability of losing a job 
 
                    % Utility by work status: U_t(l_t,K_j)=(T-l_t-a*i_t)^lambda*(K_j)^(1-lambda)
-                            
-                     % current utility is a function of: 
-                     %T: annualized per period endownment of time/leisure- estimated in French & Jones- 4,466 hours 
-                     %l_t: participation in work (0 or 1)- Q. work partipiaction decision itself? or work participation decision * work hours (i.e.theta2 below)?
-                     %theta2: fixed cost of work, in hours - i.e., hours worked per year- estimated in French & Jones- 1,313 hours
-                     %alpha: the “productive” share of cognitive investment that is not perceived as leisure
-                     %inv: time invested in cognitive stimulating activities
-                     %"T- theta2*l_t -?i_t": individual’s time constraint and indicates the quantity of leisure consumed
-
-                     T= 24-8; % 24-sleep, temporary (4,466 French & Jones 2011) 
-                     L_j= 8; % 8 hours of work, temporary (1,313 French & Jones 2011)
-                     alpha=0.1; % temporary
-                     lambda1=0.3; % temporary
-                     lambda2=0.3; % temporary
-                     eta=0.5; % fixed savings rate, temporary 
-
-                     inc_w = wage;
-                     inc_r = PIA_t;
+                     u_w(k) = U_func(8, inv_w, K_j, inc_w); %% check 
+                     u_r(k) = U_func(0, inv_r, K_j, inc_r); %% check 
                      
-                     u_w(k) = lambda1*log(T - L_j- alpha*inv_w) + lambda2*log(K_j) + (1-lambda1-lambda2)*log((1-eta)*inc_w); %% check 
-                     u_r(k) = lambda1*log(T - alpha*inv_r) + lambda2*log(K_j) + (1-lambda1-lambda2)*log((1-eta)*inc_r); %% check 
-                     
-%                      u_w(k)= ((T - L_j- alpha*inv_w).^lambda1) * K_j^(lambda2) + ((1-eta)*inc_w)^(1-lambda1-lambda2); 
-%                      u_r(k)= ((T - alpha*inv_r).^lambda1) * K_j^(lambda2) + ((1-eta)*inc_r)^(1-lambda1-lambda2);
+                   % transition for cognitive capital: K_(t+1)=?*i_t^total+(1-?_t)K_j+?_t^health
+                   % Q. are theta1, delta, shocks same for workers and the retired?
+                    K_w_next(k) = K_trans(inv_w, agegr, K_j, shocks_h);
+                    K_r_next(k) = K_trans(inv_r, agegr, K_j, shocks_h);
                    
-                   % Transition for asset: A_(t+1)=(1+r)A_t+l_t*w_t(JD,Ed,age,?_t^wage)+(1-l_t)PIA(AIME_j,age_t)
-                     
-                     A_w_next = A_trans(G, A_j, inc_w, inv_w);
-                     A_r_next = A_trans(G, A_j, inc_r, inv_r);
+                   % Transition for asset: A_(t+1)=(1+r)A_t+l_t*w_t(JD,Ed,age,?_t^wage)+(1-l_t)PIA(AIME_j,age_t)  
+                     A_w_next(k) = A_trans(G, A_j, inc_w, inv_w);
+                     A_r_next(k) = A_trans(G, A_j, inc_r, inv_r);
                                                  
                    % Transition for AIME
-                     AIME_w_next = AIME_trans(G, age, AIME_j, wage);
-                     AIME_r_next = AIME_j; % if retired, AIME doesn't update anymore
+                     AIME_w_next(k) = AIME_trans(G, age, AIME_j, wage);
+                     AIME_r_next(k) = AIME_j; % if retired, AIME doesn't update anymore
                    
                    % polynomial approximation of VF (for all continuous variables)
 
                      % for workers 
-                     Base_w_A=chebpoly_base(S.nA+1, S.d_A*(A_w_next - S.extmin_A) - 1); 
-                     Base_w_K=chebpoly_base(S.nK+1, S.d_K*(K_w_next - S.extmin_K) - 1);                                        
-                     Base_w_M=chebpoly_base(S.nM+1, S.d_M*(AIME_w_next - S.extmin_M) - 1);
+                     Base_w_A=chebpoly_base(S.nA+1, S.d_A*(A_w_next(k) - S.extmin_A) - 1); 
+                     Base_w_K=chebpoly_base(S.nK+1, S.d_K*(K_w_next(k) - S.extmin_K) - 1);                                        
+                     Base_w_M=chebpoly_base(S.nM+1, S.d_M*(AIME_w_next(k) - S.extmin_M) - 1);
                      Base_w=kron(Base_w_A,kron(Base_w_K,Base_w_M));
                      
-                     V_w_next = sum(coeff.*Base_w,2); 
+                     V_w_next(k) = sum(coeff.*Base_w,2); 
                      
                      % for retired 
-                     Base_r_A=chebpoly_base(S.nA+1, S.d_A*(A_r_next - S.extmin_A) - 1); 
-                     Base_r_K=chebpoly_base(S.nK+1, S.d_K*(K_r_next - S.extmin_K) - 1);                                        
-                     Base_r_M=chebpoly_base(S.nM+1, S.d_M*(AIME_r_next - S.extmin_M) - 1);
+                     Base_r_A=chebpoly_base(S.nA+1, S.d_A*(A_r_next(k) - S.extmin_A) - 1); 
+                     Base_r_K=chebpoly_base(S.nK+1, S.d_K*(K_r_next(k) - S.extmin_K) - 1);                                        
+                     Base_r_M=chebpoly_base(S.nM+1, S.d_M*(AIME_r_next(k) - S.extmin_M) - 1);
                      Base_r=kron(Base_r_A,kron(Base_r_K,Base_r_M));
                      
-                     V_r_next = sum(coeff.*Base_r,2); 
+                     V_r_next(k) = sum(coeff.*Base_r,2); 
                      
-                   % save output (Assets, AIME, Cognitive capital )
+                   % validate output (Assets, AIME, Cognitive capital)
                             
-                     % for workers 
-                     A_w_next(k)=A_w_next;
-                               
+                     % for workers           
                      if A_w_next < S.extmin_A
                         V_w_next(k)=NaN;
                      else
-                        V_w_next(k)=V_w_next;
+                        V_w_next(k)=V_w_next(k);
                      end
                      
-                     AIME_w_next(k)=AIME_w_next;
-                     K_w_next(k)=K_w_next;
-                     
-                     % for retired 
-                     A_r_next(k)=A_r_next;
-                               
+                     % for retired          
                      if A_r_next < S.extmin_A
                         V_r_next(k)=NaN;
                      else
-                        V_r_next(k)=V_r_next;
+                        V_r_next(k)=V_r_next(k);
                      end
-
-                     AIME_r_next(k)=AIME_r_next;
-                     K_r_next(k)=K_r_next;
                             
                      % Sector-Specific Value Function (for working & retired)
                      V_w(k) = u_w(k) + G.beta * ((1-prob_lambda)*V_w_next(k) + prob_lambda*V_r_next(k));
@@ -221,12 +196,12 @@ for t = G.n_period-1:-1:1
               inv_w_star = inv_w_vector(index_w_n);                            
               inv_r_star = inv_r_vector(index_r_n);
               inv_star_aux = [inv_w_star, inv_r_star]; 
-              [V_star, l_index] = max([V_w_star,V_r_star]);
+              [V_max, l_index] = max([V_w_star,V_r_star]);
                             
               % save choices
               i_star(j,i,t) = inv_star_aux(l_index);
               l_star(j,i,t) = l_index;
-              V_star(j,i,t) = V_star;
+              V_star(j,i,t) = V_max;
               
         end
 
@@ -236,3 +211,4 @@ for t = G.n_period-1:-1:1
     W(:,t) = pi^(-1/2)*V_star(:,:,t)*S.weight;
 
 end
+toc

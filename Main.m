@@ -8,7 +8,7 @@ clear all; clc;
 run setup_params.m
 
 %% Set up State Space
-S = sspace(eparams,G); % optimal assets for poly, sspace
-%S = sspace_lin(eparams,G); % linear assets, sspace3
+S = sspace(G); % optimal assets for poly, sspace
+%S = sspace(eparams,G); % with eparams
 
 %% Solution (loop all 18 types)

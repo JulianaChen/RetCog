@@ -30,13 +30,19 @@ n_coginv= 10; % 10 points of support
 n_cogcap= 15; % 15 points of support
 n_work= 2; % 2 points of support
 
+% Health investment 
+inv_min= 0;
+inv_w_max= 24-8-8; % get from data
+inv_r_max= 24-8; % get from data
+
 %simulation parameters
 Eps=randn(3,n_pop,n_period);
 
 G = struct('Ne',Ne,'beta',beta,'r',r,'g',g,'Eps',Eps,...
     'nu',nu,'kappa',kappa,'lambda',lambda,'theta_b',theta_b,...
     'n_period',n_period,'n_shocks',n_shocks,'n_pop',n_pop,'n_work',n_work,...
-    'n_assets',n_assets,'n_aime',n_aime,'n_coginv',n_coginv,'n_cogcap',n_cogcap);
+    'n_assets',n_assets,'n_aime',n_aime,'n_coginv',n_coginv,'n_cogcap',n_cogcap,...
+    'inv_min',inv_min,'inv_w_max',inv_w_max,'inv_r_max',inv_r_max);
 
 %% Estimated Parameters (import from excel)
 

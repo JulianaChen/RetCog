@@ -1,4 +1,4 @@
-% function [S] = sspace(eparams,G)
+function [S] = sspace(G)
 
 %% Shocks - Q. Persistent shocks? how to differntiate wage shocks & health shocks?
 
@@ -60,6 +60,8 @@ S = struct(...
     'extmin_M',extmin_M,'extmax_M',extmax_M,'nA',nA,'nK',nK,'nM',nM,...
     'd_A', d_A, 'd_K', d_K, 'd_M', d_M, 'assets', assets, 'cogcap', cogcap, 'aime', aime,...
     'SS_A', SS_A, 'SS_K', SS_K, 'SS_M', SS_M,'T_A',T_A,'T_K',T_K,'T_M',T_M,...
-    'T2_A',T2_A,'T2_K',T2_K,'T2_M',T2_M,'B_A',B_A,'B_K',B_K,'B_M',B_M,'T2',T2,'B',B);
+    'T2_A',T2_A,'T2_K',T2_K,'T2_M',T2_M,'T2',T2,'B',B);
 
-% end 'Teps_w',Teps_w,'Teps_h',Teps_h,'T2eps_w',T2eps_w,'T2eps_h',T2eps_h
+end
+
+%'Teps_w',Teps_w,'Teps_h',Teps_h,'T2eps_w',T2eps_w,'T2eps_h',T2eps_h
